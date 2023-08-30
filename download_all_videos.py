@@ -83,7 +83,8 @@ for meeting in json_data.get("meetings", []):
                 'start': recording_file.get("recording_start"),
                 })
             # Append the meeting ID to the list
-            meetings.append(meeting.get("id")) if meeting.get("id") not in meetings else None
+            if meeting.get("id") not in meetings:
+                meetings.append(meeting.get("id"))
 logger.debug(f'MP4 download URLs: {mp4_download_urls}')
 logger.debug(f'Meetings to delete: {meetings}')
 
