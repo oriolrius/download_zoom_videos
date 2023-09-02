@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import base64
+from datetime import datetime, timedelta
 import structlog
 import requests
 from dotenv import load_dotenv
@@ -48,8 +49,14 @@ else:
     logger.error(f'Failed to get data: {response.status_code}')
     sys.exit(1)
 
-# getting all recordings
-url = "https://api.zoom.us/v2/users/me/recordings"
+# getting all recordings from the last year
+# Get the current date
+current_date = datetime.now().date()
+# Subtract one year
+one_year_earlier = datetime(current_date.year - 1, current_date.month, current_date.day).date()
+# Format the date to a string in YYYY-MM-DD format
+formatted_date = one_year_earlier.strftime('%Y-%m-%d')
+url = f"https://api.zoom.us/v2/users/me/recordings?from={formatted_date}"
 headers = {
   'Authorization': f'Bearer {access_token}'
 }
