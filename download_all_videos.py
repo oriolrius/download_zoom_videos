@@ -3,7 +3,7 @@ import os
 import sys
 import logging
 import base64
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 import pytz
 import structlog
 import requests
