@@ -40,12 +40,11 @@ def generate_filename(ts, recording_tz):
     logger.debug(f'Timestamp: {ts} - Timezone: {recording_tz}')
     ts_dt = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ")
 
-    # Assuming recording_tz is a string like "GMT+08:00"
-    offset_str = recording_tz[3:]
-    if "-" in offset_str:
-        tz_name = 'Etc/GMT+' + offset_str[1:3]  # Naming convention is positive offset
-    else:
-        tz_name = 'Etc/GMT-' + offset_str[1:3]
+    # Assuming recording_tz is a string like "GMT+08:00 or GMT+8:00"
+    offset_str = recording_tz.split(":")[0][-2:].lstrip('+').lstrip('-')
+    sign = recording_tz[3]
+    tz_name = f'Etc/GMT{sign}{offset_str}'
+    logger.debug(f'TZ Name: {tz_name}')
 
     tz = pytz.timezone(tz_name)
     ts_dt_tz = ts_dt.replace(tzinfo=pytz.utc).astimezone(tz)
