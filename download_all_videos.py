@@ -3,7 +3,8 @@ import os
 import sys
 import logging
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import pytz
 import structlog
 import requests
 from dotenv import load_dotenv
@@ -21,6 +22,40 @@ account_id = os.getenv('ACCOUNT_ID', '')
 
 client_id = os.getenv('CLIENT_ID', '')
 client_secret = os.getenv('CLIENT_SECRET', '')
+
+def generate_filename(ts, recording_tz):
+    """
+    Generate a filename based on the provided timestamp and timezone, 
+    converting it to 'Europe/Madrid' timezone.
+
+    Parameters:
+    - ts (str): A timestamp string in the format "2023-09-05T05:00:32Z".
+    - recording_tz (str): A string representing the timezone in which the 
+        recording took place, e.g., "GMT+08:00".
+
+    Returns:
+    - str: A filename string in the format "2023-09-05T13-00-32+0800", 
+        with the timestamp converted to 'Europe/Madrid' timezone.
+    """
+    logger.debug(f'Timestamp: {ts} - Timezone: {recording_tz}')
+    ts_dt = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ")
+
+    # Assuming recording_tz is a string like "GMT+08:00"
+    offset_str = recording_tz[3:]
+    if "-" in offset_str:
+        tz_name = 'Etc/GMT+' + offset_str[1:3]  # Naming convention is positive offset
+    else:
+        tz_name = 'Etc/GMT-' + offset_str[1:3]
+
+    tz = pytz.timezone(tz_name)
+    ts_dt_tz = ts_dt.replace(tzinfo=pytz.utc).astimezone(tz)
+    local_tz = pytz.timezone('Europe/Madrid')
+    local_ts_dt_tz = ts_dt_tz.astimezone(local_tz)
+    filename = local_ts_dt_tz.strftime('%Y-%m-%dT%H-%M-%S%z')  # example: 2023-09-05T13-00-32+0800
+    logger.debug(f'Filename: {filename}')
+
+    return filename
+
 
 # Combine the client_id and client_secret with a colon
 combined = f"{client_id}:{client_secret}"
@@ -79,6 +114,7 @@ meetings = [] # list of meetings to delete
 for meeting in json_data.get("meetings", []):
     # Iterate through each recording file
     # logger.debug(f'Meeting: {meeting}')
+    recording_tz = meeting.get("timezone") # "GMT+08:00"
     for recording_file in meeting.get("recording_files", []):
         # logger.debug(f'Recording file: {recording_file}')
         # Check if the file type is MP4
@@ -98,14 +134,16 @@ logger.debug(f'Meetings to delete: {meetings}')
 # Download all MP4 files
 for mp4_download_url in mp4_download_urls:
     # Get the file name from the URL
-    file_name = f'{mp4_download_url.get("start")}.mp4'
+    ts = mp4_download_url.get("start") # ex. ts = "2023-09-05T05:00:32Z"
+    filename = generate_filename(ts, recording_tz)
+    file_name = f'{filename}.mp4'
     logger.info(f'Downloading {file_name}...')
-   
+
     # Download the MP4 file
     url = mp4_download_url.get("url")
     logger.debug(f'URL: {url}')
     response = response = requests.request("GET", url, headers=headers, data=payload, timeout=10)
-    
+
     # Check if the request was successful
     if response.status_code != 200:
         logger.error(f'Failed to download {file_name}: {response.status_code}')
